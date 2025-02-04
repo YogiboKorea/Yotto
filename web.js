@@ -21,7 +21,7 @@ let loserNumbers = new Set();
 try {
   const jsonData = JSON.parse(fs.readFileSync("loser_numbers.json", "utf-8"));
   loserNumbers = new Set(jsonData.loserNumbers);
-  console.log("JSON 파일에서 불러온 LOSER_NUMBER 목록:", Array.from(loserNumbers).slice(0, 5)); // 샘플 출력
+  console.log("JSON 파일에서 불러온 LOSER_NUMBER 목록:", Array.from(loserNumbers).slice(0, 5000)); // 샘플 출력
 } catch (error) {
   console.error("loser_numbers.json 파일 읽기 오류:", error);
   process.exit(1);
