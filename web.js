@@ -15,7 +15,7 @@ const winningNumber = process.env.WINNING_NUMBER;
 const secondPrizeNumber = process.env.SECOND_NUMBER;
 const thirdPrizeNumber = process.env.THIRD_NUMBER;
 const loserNumbers = process.env.LOSER_NUMBER
-  ? new Set(process.env.LOSER_NUMBER.split(",").map((num) => num.trim()))
+  ? new Set(process.env.LOSER_NUMBER.split("800754,200440,220558,940171,128928,457373,975393").map((num) => num.trim()))
   : new Set();
 
 if (!uri || !winningNumber || !secondPrizeNumber || !thirdPrizeNumber || loserNumbers.size === 0) {
