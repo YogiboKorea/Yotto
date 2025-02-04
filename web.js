@@ -8,10 +8,13 @@ const app = express();
 const PORT = process.env.PORT || 4100;
 const uri = process.env.MONGO_URI;
 const dbName = process.env.DB_NAME || "Yotto";
-const winningNumber = process.env.WINNING_NUMBER || "123456";
-const secondPrizeNumbers = process.env.SECOND_PRIZE_NUMBERS ? process.env.SECOND_PRIZE_NUMBERS.split(",") : [];
 
-if (!uri || !winningNumber || secondPrizeNumbers.length === 0) {
+const winningNumber = process.env.WINNING_NUMBER || "123456";
+const secondPrizeNumber = process.env.SECOND_NUMBER || "456456";
+const thirdPrizeNumber = process.env.THIRD_NUMBER || "666666";
+const loserNumbers = process.env.LOSER_NUMBER ? process.env.LOSER_NUMBER.split(",") : [];
+
+if (!uri || !winningNumber || !secondPrizeNumber || !thirdPrizeNumber || loserNumbers.length === 0) {
   console.error("필수 환경 변수가 누락되었습니다.");
   process.exit(1);
 }
@@ -41,27 +44,37 @@ app.post("/api/participate", async (req, res) => {
     const collection = db.collection("yogibo");
     const existingEntry = await collection.findOne({ memberId, selectedStore, enteredNumber });
     if (existingEntry) {
-      return res.status(400).json({ message: "이미 참여한 기록이 있습니다." });
+      return res.status(400).json({ message: "이미 참여한 기록이 있는 번호입니다." });
     }
 
     // 당첨 여부 확인
     let resultMessage = "아쉽지만 당첨되지 않았습니다.";
     let isWinner = false;
-    let prizeType = null;
+    let prizeType = "미당첨";
 
     if (enteredNumber === winningNumber) {
       isWinner = true;
-      prizeType = "당첨";
+      prizeType = "1등";
       resultMessage = "🎉 축하합니다! 1등 당첨되셨습니다!";
-    } else if (secondPrizeNumbers.includes(enteredNumber)) {
+    } else if (enteredNumber === secondPrizeNumber) {
       isWinner = true;
+      prizeType = "2등";
+      resultMessage = "🎉 축하합니다! 2등 당첨되셨습니다!";
+    } else if (enteredNumber === thirdPrizeNumber) {
+      isWinner = true;
+      prizeType = "3등";
+      resultMessage = "🎉 축하합니다! 3등 당첨되셨습니다!";
+    } else if (loserNumbers.includes(enteredNumber)) {
+      isWinner = false;
       prizeType = "미당첨";
-      resultMessage = "아쉽게도 당첨되지 않았어요";
+      resultMessage = "아쉽지만 당첨되지 않았습니다.";
+    } else {
+      return res.status(400).json({ message: "입력된 번호가 유효하지 않습니다." });
     }
 
     // 참여 데이터 MongoDB에 저장
     const participationData = {
-      participationDate: new Date().toISOString(),     
+      participationDate: new Date().toISOString(),
       memberId,
       selectedStore,
       enteredNumber,
@@ -82,18 +95,20 @@ app.post("/api/participate", async (req, res) => {
   }
 });
 
-// 미당첨 번호 리스트 
-app.get("/api/second-prize-numbers", (req, res) => {
+// 미당첨 번호 리스트 API
+app.get("/api/loser-numbers", (req, res) => {
     try {
-      // secondPrizeNumbers 배열을 클라이언트에 전달
-      res.status(200).json({ secondPrizeNumbers });
+      // loserNumbers 배열을 클라이언트에 전달
+      res.status(200).json({ loserNumbers });
     } catch (error) {
-      console.error("두 번째 당첨 번호 가져오기 오류:", error);
+      console.error("미당첨 번호 가져오기 오류:", error);
       res.status(500).json({ message: "서버 오류. 다시 시도해주세요." });
     }
   });
+
   
 
+// 서버 실행
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
