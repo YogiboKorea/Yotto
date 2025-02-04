@@ -82,6 +82,18 @@ app.post("/api/participate", async (req, res) => {
   }
 });
 
+// 미당첨 번호 리스트 
+app.get("/api/second-prize-numbers", (req, res) => {
+    try {
+      // secondPrizeNumbers 배열을 클라이언트에 전달
+      res.status(200).json({ secondPrizeNumbers });
+    } catch (error) {
+      console.error("두 번째 당첨 번호 가져오기 오류:", error);
+      res.status(500).json({ message: "서버 오류. 다시 시도해주세요." });
+    }
+  });
+  
+
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
