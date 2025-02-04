@@ -153,22 +153,6 @@ app.get("/api/export", async (req, res) => {
   }
 });
 
-// 당첨 번호 제공 API
-app.get("/api/winning-numbers", (req, res) => {
-  try {
-    const data = {
-      firstPrize: winningNumber,
-      secondPrize: secondPrizeNumber,
-      thirdPrize: thirdPrizeNumber,
-      loserNumbers: Array.from(loserNumbers),
-    };
-    res.status(200).json(data);
-  } catch (error) {
-    console.error("당첨 번호 가져오기 오류:", error);
-    res.status(500).json({ message: "서버 오류. 다시 시도해주세요." });
-  }
-});
-
 // 서버 실행
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
