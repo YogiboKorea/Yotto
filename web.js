@@ -9,9 +9,9 @@ const PORT = process.env.PORT || 4100;
 const uri = process.env.MONGO_URI;
 const dbName = process.env.DB_NAME || "Yotto";
 
-const winningNumber = process.env.WINNING_NUMBER ;
-const secondPrizeNumber = process.env.SECOND_NUMBER ;
-const thirdPrizeNumber = process.env.THIRD_NUMBER ;
+const winningNumber = process.env.WINNING_NUMBER || "111111";;
+const secondPrizeNumber = process.env.SECOND_NUMBER || "222222";;
+const thirdPrizeNumber = process.env.THIRD_NUMBER || "333333";;
 const loserNumbers = process.env.LOSER_NUMBER ? process.env.LOSER_NUMBER.split(",") : [];
 
 if (!uri || !winningNumber || !secondPrizeNumber || !thirdPrizeNumber || loserNumbers.length === 0) {
