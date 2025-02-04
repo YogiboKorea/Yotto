@@ -13,9 +13,9 @@ const dbName = process.env.DB_NAME || "Yotto";
 const winningNumber = process.env.WINNING_NUMBER;
 const secondPrizeNumber = process.env.SECOND_NUMBER;
 const thirdPrizeNumber = process.env.THIRD_NUMBER;
-const loserNumbers = process.env.LOSER_NUMBER ? process.env.LOSER_NUMBER.split(",") : [];
+const loserNumbers = process.env.LOSER_NUMBER ? new Set(process.env.LOSER_NUMBER.split(",")) : new Set();
 
-if (!uri || !winningNumber || !secondPrizeNumber || !thirdPrizeNumber || loserNumbers.length === 0) {
+if (!uri || !winningNumber || !secondPrizeNumber || !thirdPrizeNumber || loserNumbers.size === 0) {
   console.error("필수 환경 변수가 누락되었습니다.");
   process.exit(1);
 }
@@ -67,7 +67,7 @@ app.post("/api/participate", async (req, res) => {
       isWinner = true;
       prizeType = "3등";
       resultMessage = "🎉 축하합니다! 3등 당첨되셨습니다!";
-    } else if (loserNumbers.includes(enteredNumber)) {
+    } else if (loserNumbers.has(enteredNumber)) { // Set 사용
       prizeType = "탈락";
       resultMessage = "아쉽지만 당첨되지 않았습니다.";
     } else {
@@ -146,7 +146,7 @@ app.get("/api/winning-numbers", (req, res) => {
       firstPrize: winningNumber,
       secondPrize: secondPrizeNumber,
       thirdPrize: thirdPrizeNumber,
-      loserNumbers,
+      loserNumbers: Array.from(loserNumbers), // Set을 배열로 변환하여 반환
     };
     res.status(200).json(data);
   } catch (error) {
