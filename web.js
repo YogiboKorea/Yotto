@@ -2,6 +2,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const { MongoClient } = require("mongodb");
 const cors = require("cors");
+const excelJS = require("exceljs");
 require("dotenv").config();
 
 const app = express();
@@ -45,12 +46,10 @@ app.post("/api/participate", async (req, res) => {
     }
 
     const collection = db.collection("yogibo");
-
-    //중복 참여막기
-    // const existingEntry = await collection.findOne({ memberId, selectedStore, enteredNumber });
-    // if (existingEntry) {
-    //   return res.status(400).json({ message: "이미 참여한 기록이 있는 번호입니다." });
-    // }
+    const existingEntry = await collection.findOne({ memberId, selectedStore, enteredNumber });
+    if (existingEntry) {
+      return res.status(400).json({ message: "이미 참여한 기록이 있는 번호입니다." });
+    }
 
     let resultMessage = "아쉽지만 당첨되지 않았습니다.";
     let isWinner = false;
@@ -75,8 +74,12 @@ app.post("/api/participate", async (req, res) => {
       return res.status(400).json({ message: "입력된 번호가 유효하지 않습니다." });
     }
 
+    // 참여 데이터 MongoDB에 저장
+    const participationDate = new Date()
+      .toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" }); // 한국 시간 날짜만 저장
+
     const participationData = {
-      participationDate: new Date().toISOString(),
+      participationDate,
       memberId,
       selectedStore,
       enteredNumber,
@@ -94,6 +97,45 @@ app.post("/api/participate", async (req, res) => {
   } catch (error) {
     console.error("참여 처리 중 오류:", error);
     res.status(500).json({ message: "서버 오류. 다시 시도해주세요." });
+  }
+});
+
+// 데이터 엑셀 다운로드 API
+app.get("/api/export", async (req, res) => {
+  try {
+    const collection = db.collection("yogibo");
+    const data = await collection.find({}).toArray();
+
+    const workbook = new excelJS.Workbook();
+    const worksheet = workbook.addWorksheet("참여 데이터");
+
+    worksheet.columns = [
+      { header: "참여 날짜", key: "participationDate", width: 15 },
+      { header: "회원 ID", key: "memberId", width: 20 },
+      { header: "선택 매장", key: "selectedStore", width: 20 },
+      { header: "입력 번호", key: "enteredNumber", width: 15 },
+      { header: "당첨 여부", key: "isWinner", width: 10 },
+      { header: "당첨 유형", key: "prizeType", width: 15 },
+    ];
+
+    data.forEach((record) => {
+      worksheet.addRow(record);
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=" + "participation_data.xlsx"
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error("엑셀 파일 생성 오류:", error);
+    res.status(500).json({ message: "엑셀 파일 생성 중 오류가 발생했습니다." });
   }
 });
 
