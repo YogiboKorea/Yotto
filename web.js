@@ -10,7 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 4100;
 const uri = process.env.MONGO_URI;
 const dbName = process.env.DB_NAME || "Yotto";
-const COLLECTION_NAME = "yogibo";
+const COLLECTION_NAME = "Participation";
 
 const winningNumber = process.env.WINNING_NUMBER;
 const secondPrizeNumber = process.env.SECOND_NUMBER;
@@ -59,10 +59,10 @@ app.post("/api/participate", async (req, res) => {
     }
 
     const collection = db.collection(COLLECTION_NAME);
-    const existingEntry = await collection.findOne({ memberId, selectedStore, enteredNumber });
-    if (existingEntry) {
-      return res.status(400).json({ message: "이미 참여한 기록이 있는 번호입니다." });
-    }
+    // const existingEntry = await collection.findOne({ memberId, selectedStore, enteredNumber });
+    // if (existingEntry) {
+    //   return res.status(400).json({ message: "이미 참여한 기록이 있는 번호입니다." });
+    // }
 
     let isWinner = false;
     let prizeType = "미당첨";
