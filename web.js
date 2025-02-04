@@ -3,6 +3,7 @@ const bodyParser = require("body-parser");
 const { MongoClient } = require("mongodb");
 const cors = require("cors");
 const excelJS = require("exceljs");
+const fs = require("fs");
 require("dotenv").config();
 
 const app = express();
@@ -14,15 +15,23 @@ const COLLECTION_NAME = "yogibo";
 const winningNumber = process.env.WINNING_NUMBER;
 const secondPrizeNumber = process.env.SECOND_NUMBER;
 const thirdPrizeNumber = process.env.THIRD_NUMBER;
-const loserNumbers = process.env.LOSER_NUMBER
-  ? new Set(process.env.LOSER_NUMBER.split("800754,200440,220558,940171,128928,457373,975393").map((num) => num.trim()))
-  : new Set();
 
+// JSON 파일에서 loserNumbers 가져오기
+let loserNumbers = new Set();
+try {
+  const jsonData = JSON.parse(fs.readFileSync("loser_numbers.json", "utf-8"));
+  loserNumbers = new Set(jsonData.loserNumbers);
+  console.log("JSON 파일에서 불러온 LOSER_NUMBER 목록:", Array.from(loserNumbers).slice(0, 5)); // 샘플 출력
+} catch (error) {
+  console.error("loser_numbers.json 파일 읽기 오류:", error);
+  process.exit(1);
+}
+
+// 필수 환경 변수 검증
 if (!uri || !winningNumber || !secondPrizeNumber || !thirdPrizeNumber || loserNumbers.size === 0) {
   console.error("필수 환경 변수가 누락되었습니다.");
   process.exit(1);
 }
-console.log("환경변수에서 불러온 LOSER_NUMBER 목록:", Array.from(loserNumbers));
 
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
 
@@ -39,78 +48,68 @@ client.connect()
 
 app.use(cors());
 app.use(bodyParser.json());
+
+// 참여 API
 app.post("/api/participate", async (req, res) => {
-    try {
-      const { memberId, selectedStore, enteredNumber } = req.body;
-  
-      if (!memberId || typeof memberId !== "string" || !selectedStore || typeof selectedStore !== "string" || !/^\d{6}$/.test(enteredNumber)) {
-        return res.status(400).json({ message: "올바른 입력값이 아닙니다." });
-      }
-  
-      const collection = db.collection("yogibo");
-      const existingEntry = await collection.findOne({ memberId, selectedStore, enteredNumber });
-      if (existingEntry) {
-        return res.status(400).json({ message: "이미 참여한 기록이 있는 번호입니다." });
-      }
-  
-      const trimmedEnteredNumber = enteredNumber.trim(); // 공백 제거
-  
-      console.log("입력된 번호:", trimmedEnteredNumber);
-      console.log("Set 내 모든 탈락 번호:", Array.from(loserNumbers)); // 디버그 로그
-  
-      if (loserNumbers.has(trimmedEnteredNumber)) {
-        console.log(`탈락 번호 확인됨: ${trimmedEnteredNumber}`);
-        return res.status(200).json({
-          message: "아쉽지만 당첨되지 않았습니다.",
-          isWinner: false,
-          prizeType: "탈락",
-        });
-      }
-  
-      let isWinner = false;
-      let prizeType = "미당첨";
-      let resultMessage = "아쉽지만 당첨되지 않았습니다.";
-  
-      if (trimmedEnteredNumber === winningNumber) {
-        isWinner = true;
-        prizeType = "1등";
-        resultMessage = "🎉 축하합니다! 1등 당첨되셨습니다!";
-      } else if (trimmedEnteredNumber === secondPrizeNumber) {
-        isWinner = true;
-        prizeType = "2등";
-        resultMessage = "🎉 축하합니다! 2등 당첨되셨습니다!";
-      } else if (trimmedEnteredNumber === thirdPrizeNumber) {
-        isWinner = true;
-        prizeType = "3등";
-        resultMessage = "🎉 축하합니다! 3등 당첨되셨습니다!";
-      } else {
-        return res.status(400).json({ message: "입력된 번호가 유효하지 않습니다." });
-      }
-  
-      const participationDate = new Date().toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" });
-  
-      const participationData = {
-        participationDate,
-        memberId,
-        selectedStore,
-        enteredNumber: trimmedEnteredNumber,
-        isWinner,
-        prizeType,
-      };
-  
-      await collection.insertOne(participationData);
-  
-      res.status(200).json({
-        message: resultMessage,
-        isWinner,
-        prizeType,
-      });
-    } catch (error) {
-      console.error("참여 처리 중 오류:", error);
-      res.status(500).json({ message: "서버 오류. 다시 시도해주세요." });
+  try {
+    const { memberId, selectedStore, enteredNumber } = req.body;
+
+    if (!memberId || typeof memberId !== "string" || !selectedStore || typeof selectedStore !== "string" || !/^\d{6}$/.test(enteredNumber)) {
+      return res.status(400).json({ message: "올바른 입력값이 아닙니다." });
     }
-  });
-  
+
+    const collection = db.collection(COLLECTION_NAME);
+    const existingEntry = await collection.findOne({ memberId, selectedStore, enteredNumber });
+    if (existingEntry) {
+      return res.status(400).json({ message: "이미 참여한 기록이 있는 번호입니다." });
+    }
+
+    let isWinner = false;
+    let prizeType = "미당첨";
+    let resultMessage = "아쉽지만 당첨되지 않았습니다.";
+
+    if (enteredNumber === winningNumber) {
+      isWinner = true;
+      prizeType = "1등";
+      resultMessage = "🎉 축하합니다! 1등 당첨되셨습니다!";
+    } else if (enteredNumber === secondPrizeNumber) {
+      isWinner = true;
+      prizeType = "2등";
+      resultMessage = "🎉 축하합니다! 2등 당첨되셨습니다!";
+    } else if (enteredNumber === thirdPrizeNumber) {
+      isWinner = true;
+      prizeType = "3등";
+      resultMessage = "🎉 축하합니다! 3등 당첨되셨습니다!";
+    } else if (loserNumbers.has(enteredNumber)) {
+      prizeType = "탈락";
+      resultMessage = "아쉽지만 당첨되지 않았습니다.";
+    } else {
+      return res.status(400).json({ message: "입력된 번호가 유효하지 않습니다." });
+    }
+
+    const participationDate = new Date().toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" });
+
+    const participationData = {
+      participationDate,
+      memberId,
+      selectedStore,
+      enteredNumber,
+      isWinner,
+      prizeType,
+    };
+
+    await collection.insertOne(participationData);
+
+    res.status(200).json({
+      message: resultMessage,
+      isWinner,
+      prizeType,
+    });
+  } catch (error) {
+    console.error("참여 처리 중 오류:", error);
+    res.status(500).json({ message: "서버 오류. 다시 시도해주세요." });
+  }
+});
 
 // 엑셀 다운로드 API
 app.get("/api/export", async (req, res) => {
@@ -133,7 +132,7 @@ app.get("/api/export", async (req, res) => {
     data.forEach((record) => {
       worksheet.addRow({
         ...record,
-        isWinner: record.isWinner ? "당첨" : "탈락", // true/false 변환
+        isWinner: record.isWinner ? "당첨" : "탈락",
       });
     });
 
@@ -154,6 +153,7 @@ app.get("/api/export", async (req, res) => {
   }
 });
 
+// 서버 실행
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
