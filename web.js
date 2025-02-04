@@ -39,68 +39,78 @@ client.connect()
 
 app.use(cors());
 app.use(bodyParser.json());
-
-// 참여 API
 app.post("/api/participate", async (req, res) => {
-  try {
-    const { memberId, selectedStore, enteredNumber } = req.body;
-
-    if (!memberId || typeof memberId !== "string" || !selectedStore || typeof selectedStore !== "string" || !/^\d{6}$/.test(enteredNumber)) {
-      return res.status(400).json({ message: "올바른 입력값이 아닙니다." });
+    try {
+      const { memberId, selectedStore, enteredNumber } = req.body;
+  
+      if (!memberId || typeof memberId !== "string" || !selectedStore || typeof selectedStore !== "string" || !/^\d{6}$/.test(enteredNumber)) {
+        return res.status(400).json({ message: "올바른 입력값이 아닙니다." });
+      }
+  
+      const collection = db.collection("yogibo");
+      const existingEntry = await collection.findOne({ memberId, selectedStore, enteredNumber });
+      if (existingEntry) {
+        return res.status(400).json({ message: "이미 참여한 기록이 있는 번호입니다." });
+      }
+  
+      const trimmedEnteredNumber = enteredNumber.trim(); // 공백 제거
+  
+      console.log("입력된 번호:", trimmedEnteredNumber);
+      console.log("Set 내 모든 탈락 번호:", Array.from(loserNumbers)); // 디버그 로그
+  
+      if (loserNumbers.has(trimmedEnteredNumber)) {
+        console.log(`탈락 번호 확인됨: ${trimmedEnteredNumber}`);
+        return res.status(200).json({
+          message: "아쉽지만 당첨되지 않았습니다.",
+          isWinner: false,
+          prizeType: "탈락",
+        });
+      }
+  
+      let isWinner = false;
+      let prizeType = "미당첨";
+      let resultMessage = "아쉽지만 당첨되지 않았습니다.";
+  
+      if (trimmedEnteredNumber === winningNumber) {
+        isWinner = true;
+        prizeType = "1등";
+        resultMessage = "🎉 축하합니다! 1등 당첨되셨습니다!";
+      } else if (trimmedEnteredNumber === secondPrizeNumber) {
+        isWinner = true;
+        prizeType = "2등";
+        resultMessage = "🎉 축하합니다! 2등 당첨되셨습니다!";
+      } else if (trimmedEnteredNumber === thirdPrizeNumber) {
+        isWinner = true;
+        prizeType = "3등";
+        resultMessage = "🎉 축하합니다! 3등 당첨되셨습니다!";
+      } else {
+        return res.status(400).json({ message: "입력된 번호가 유효하지 않습니다." });
+      }
+  
+      const participationDate = new Date().toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" });
+  
+      const participationData = {
+        participationDate,
+        memberId,
+        selectedStore,
+        enteredNumber: trimmedEnteredNumber,
+        isWinner,
+        prizeType,
+      };
+  
+      await collection.insertOne(participationData);
+  
+      res.status(200).json({
+        message: resultMessage,
+        isWinner,
+        prizeType,
+      });
+    } catch (error) {
+      console.error("참여 처리 중 오류:", error);
+      res.status(500).json({ message: "서버 오류. 다시 시도해주세요." });
     }
-
-    const collection = db.collection(COLLECTION_NAME);
-    const existingEntry = await collection.findOne({ memberId, selectedStore, enteredNumber });
-    if (existingEntry) {
-      return res.status(400).json({ message: "이미 참여한 기록이 있는 번호입니다." });
-    }
-
-    let isWinner = false;
-    let prizeType = "미당첨";
-    let resultMessage = "아쉽지만 당첨되지 않았습니다.";
-
-    if (enteredNumber === winningNumber) {
-      isWinner = true;
-      prizeType = "1등";
-      resultMessage = "🎉 축하합니다! 1등 당첨되셨습니다!";
-    } else if (enteredNumber === secondPrizeNumber) {
-      isWinner = true;
-      prizeType = "2등";
-      resultMessage = "🎉 축하합니다! 2등 당첨되셨습니다!";
-    } else if (enteredNumber === thirdPrizeNumber) {
-      isWinner = true;
-      prizeType = "3등";
-      resultMessage = "🎉 축하합니다! 3등 당첨되셨습니다!";
-    } else if (loserNumbers.has(enteredNumber)) {
-      prizeType = "탈락";
-      resultMessage = "아쉽지만 당첨되지 않았습니다.";
-    } else {
-      return res.status(400).json({ message: "입력된 번호가 유효하지 않습니다." });
-    }
-
-    const participationDate = new Date().toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" });
-
-    const participationData = {
-      participationDate,
-      memberId,
-      selectedStore,
-      enteredNumber,
-      isWinner,
-      prizeType,
-    };
-
-    await collection.insertOne(participationData);
-
-    res.status(200).json({
-      message: resultMessage,
-      isWinner,
-      prizeType,
-    });
-  } catch (error) {
-    console.error("참여 처리 중 오류:", error);
-    res.status(500).json({ message: "서버 오류. 다시 시도해주세요." });
-  }
-});
+  });
+  
 
 // 엑셀 다운로드 API
 app.get("/api/export", async (req, res) => {
