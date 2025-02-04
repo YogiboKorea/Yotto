@@ -9,9 +9,9 @@ const PORT = process.env.PORT || 4100;
 const uri = process.env.MONGO_URI;
 const dbName = process.env.DB_NAME || "Yotto";
 
-const winningNumber = process.env.WINNING_NUMBER || "111111";;
-const secondPrizeNumber = process.env.SECOND_NUMBER || "222222";;
-const thirdPrizeNumber = process.env.THIRD_NUMBER || "333333";;
+const winningNumber = process.env.WINNING_NUMBER;
+const secondPrizeNumber = process.env.SECOND_NUMBER;
+const thirdPrizeNumber = process.env.THIRD_NUMBER;
 const loserNumbers = process.env.LOSER_NUMBER ? process.env.LOSER_NUMBER.split(",") : [];
 
 if (!uri || !winningNumber || !secondPrizeNumber || !thirdPrizeNumber || loserNumbers.length === 0) {
@@ -33,6 +33,22 @@ client.connect().then(() => {
 app.use(cors());
 app.use(bodyParser.json());
 
+// API: 당첨 번호 전달
+app.get("/api/prize-numbers", (req, res) => {
+  try {
+    res.status(200).json({
+      winningNumber,          // 1등 당첨 번호
+      secondPrizeNumber,      // 2등 당첨 번호
+      thirdPrizeNumber,       // 3등 당첨 번호
+      loserNumbers,           // 탈락 번호 리스트
+    });
+  } catch (error) {
+    console.error("당첨 번호 가져오기 오류:", error);
+    res.status(500).json({ message: "서버 오류. 다시 시도해주세요." });
+  }
+});
+
+// API: 참여 데이터 저장
 app.post("/api/participate", async (req, res) => {
   try {
     const { memberId, selectedStore, enteredNumber } = req.body;
@@ -94,19 +110,6 @@ app.post("/api/participate", async (req, res) => {
     res.status(500).json({ message: "서버 오류. 다시 시도해주세요." });
   }
 });
-
-// 미당첨 번호 리스트 API
-app.get("/api/loser-numbers", (req, res) => {
-    try {
-      // loserNumbers 배열을 클라이언트에 전달
-      res.status(200).json({ loserNumbers });
-    } catch (error) {
-      console.error("미당첨 번호 가져오기 오류:", error);
-      res.status(500).json({ message: "서버 오류. 다시 시도해주세요." });
-    }
-  });
-
-  
 
 // 서버 실행
 app.listen(PORT, () => {
