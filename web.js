@@ -22,33 +22,20 @@ if (!uri || !winningNumber || !secondPrizeNumber || !thirdPrizeNumber || loserNu
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
 
 let db;
-client.connect().then(() => {
-  console.log("✅ MongoDB 연결 성공");
-  db = client.db(dbName);
-}).catch((err) => {
-  console.error("MongoDB 연결 실패:", err);
-  process.exit(1);
-});
+client.connect()
+  .then(() => {
+    console.log("✅ MongoDB 연결 성공");
+    db = client.db(dbName);
+  })
+  .catch((err) => {
+    console.error("MongoDB 연결 실패:", err);
+    process.exit(1);
+  });
 
 app.use(cors());
 app.use(bodyParser.json());
 
-// API: 당첨 번호 전달
-app.get("/api/prize-numbers", (req, res) => {
-  try {
-    res.status(200).json({
-      winningNumber,          // 1등 당첨 번호
-      secondPrizeNumber,      // 2등 당첨 번호
-      thirdPrizeNumber,       // 3등 당첨 번호
-      loserNumbers,           // 탈락 번호 리스트
-    });
-  } catch (error) {
-    console.error("당첨 번호 가져오기 오류:", error);
-    res.status(500).json({ message: "서버 오류. 다시 시도해주세요." });
-  }
-});
-
-// API: 참여 데이터 저장
+// 참여 API
 app.post("/api/participate", async (req, res) => {
   try {
     const { memberId, selectedStore, enteredNumber } = req.body;
@@ -63,7 +50,6 @@ app.post("/api/participate", async (req, res) => {
       return res.status(400).json({ message: "이미 참여한 기록이 있는 번호입니다." });
     }
 
-    // 당첨 여부 확인
     let resultMessage = "아쉽지만 당첨되지 않았습니다.";
     let isWinner = false;
     let prizeType = "미당첨";
@@ -81,14 +67,12 @@ app.post("/api/participate", async (req, res) => {
       prizeType = "3등";
       resultMessage = "🎉 축하합니다! 3등 당첨되셨습니다!";
     } else if (loserNumbers.includes(enteredNumber)) {
-      isWinner = false;
-      prizeType = "미당첨";
+      prizeType = "탈락";
       resultMessage = "아쉽지만 당첨되지 않았습니다.";
     } else {
       return res.status(400).json({ message: "입력된 번호가 유효하지 않습니다." });
     }
 
-    // 참여 데이터 MongoDB에 저장
     const participationData = {
       participationDate: new Date().toISOString(),
       memberId,
@@ -107,6 +91,22 @@ app.post("/api/participate", async (req, res) => {
     });
   } catch (error) {
     console.error("참여 처리 중 오류:", error);
+    res.status(500).json({ message: "서버 오류. 다시 시도해주세요." });
+  }
+});
+
+// 당첨 번호 API
+app.get("/api/winning-numbers", (req, res) => {
+  try {
+    const data = {
+      firstPrize: winningNumber,
+      secondPrize: secondPrizeNumber,
+      thirdPrize: thirdPrizeNumber,
+      loserNumbers,
+    };
+    res.status(200).json(data);
+  } catch (error) {
+    console.error("당첨 번호 가져오기 오류:", error);
     res.status(500).json({ message: "서버 오류. 다시 시도해주세요." });
   }
 });
