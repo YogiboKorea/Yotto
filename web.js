@@ -45,10 +45,12 @@ app.post("/api/participate", async (req, res) => {
     }
 
     const collection = db.collection("yogibo");
-    const existingEntry = await collection.findOne({ memberId, selectedStore, enteredNumber });
-    if (existingEntry) {
-      return res.status(400).json({ message: "이미 참여한 기록이 있는 번호입니다." });
-    }
+
+    //중복 참여막기
+    // const existingEntry = await collection.findOne({ memberId, selectedStore, enteredNumber });
+    // if (existingEntry) {
+    //   return res.status(400).json({ message: "이미 참여한 기록이 있는 번호입니다." });
+    // }
 
     let resultMessage = "아쉽지만 당첨되지 않았습니다.";
     let isWinner = false;
